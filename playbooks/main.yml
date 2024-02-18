@@ -1,0 +1,118 @@
+- hosts: 'target'
+  become: yes
+  tasks:
+    - name: Update
+      community.general.pacman:
+        update_cache: true
+        upgrade: true
+
+    - name: clone yay repository to /tmp
+      ansible.builtin.git:
+        repo: 'https://aur.archlinux.org/yay.git'
+        dest: '/tmp/yay'
+      become: no
+
+    - name: build out yay package
+      ansible.builtin.shell:
+        cmd: 'makepkg -s'
+        chdir: '/tmp/yay'
+      become: no
+
+    - name: install yay package
+      ansible.builtin.shell:
+        cmd: 'sudo pacman -U yay*.pkg.tar.zst --noconfirm'
+        chdir: '/tmp/yay'
+      become: yes
+
+    - name: clear out tmp files after yay installation
+      ansible.builtin.shell:
+        cmd: 'sudo rm -rf /tmp/yay'
+      become: yes
+    
+    - name: /etc/sudoers.d check whether it exists 
+      ansible.builtin.file:
+        path: /etc/sudoers.d
+        state: directory
+        mode: '0755'
+      become: yes
+    
+    - name: sudo file for 'midiro' for passwordless access
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/kopy_nopasswd
+        content: |
+          midiro ALL=(ALL) NOPASSWD: /usr/bin/pacman
+          midiro ALL=(ALL) NOPASSWD: /usr/bin/docker
+        mode: '0440'
+        validate: visudo -cf %s
+      become: yes  
+
+    - name: setting up btrfs
+      ansible.builtin.shell:
+        cmd: "yay -Syu --noconfirm {{ item }}"
+      loop:
+        - snapper
+        - snap-pac
+        - btrfs-assistant
+        - snapper-support
+        - grub-btrfs
+        - btrfsmaintenance
+        - os-prober-btrfs
+      become: yes
+      become_user: midiro
+
+    - name: install dev tools
+      ansible.builtin.shell:
+        cmd: "yay -Syu --noconfirm {{ item }}"
+      loop:
+        - nodejs
+        - code
+        - docker
+        - docker-compose
+        - dotnet-sdk-7.0
+        - dotnet-runtime-7.0
+        - postman-bin
+        - npm
+        - base-devel
+        - pamac-aur
+        - libpamac-aur
+      become: yes
+      become_user: midiro
+
+    - name: audio setup
+      ansible.builtin.shell:
+        cmd: "yay -Syu --noconfirm {{ item }}"
+      loop:
+        - pipewire
+        - pipewire-pulse
+        - pipewire-alsa
+        - qjackctl
+      become: yes
+      become_user: midiro
+
+    - name: installing multimedia
+      ansible.builtin.shell:
+        cmd: "yay -Syu --noconfirm {{ item }}"
+      loop:
+        - multimedia
+        - vlc
+        - discord
+        - vesktop
+        - spotify
+        - libreoffice-fresh
+        - libreoffice-fresh-cs
+      become: yes
+      become_user: midiro
+
+    - name: fun unnecesary stuff
+      ansible.builtin.shell:
+        cmd: "yay -Syu --noconfirm {{ item }}"
+      loop:
+        - neofetch
+      become: yes
+      become_user: midiro
+
+    - name: docker start
+      ansible.builtin.shell: |
+        systemctl enable docker.service
+        systemctl start docker.service
+      become: yes
